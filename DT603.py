@@ -13,21 +13,21 @@ from pathlib import Path
 from datetime import datetime
 
 
-INPUT_PATH = Path("data (6).xlsx")   # <-- Update this to point to your file
+INPUT_PATH = Path("data (6).xlsx") 
 SHEET_NAME = "Export"
 
 DATE_COL = "Accreditation expiry date"
 TITLE_COL = "Accreditation title"
 STATUS_COL = "Accreditation status"
 
-MONTHS_AHEAD = 18  # Horizon of projection
+MONTHS_AHEAD = 18  #projection
 
 OUTPUT_DIR = Path("accreditation_outputs")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def main():
-    # --- Load data ---
+    #Load data
     df = pd.read_excel(INPUT_PATH, sheet_name=SHEET_NAME)
     df.columns = [str(c).strip() for c in df.columns]
 
@@ -35,7 +35,7 @@ def main():
     df[DATE_COL] = pd.to_datetime(df[DATE_COL], errors="coerce")
     df = df[~df[DATE_COL].isna()].copy()   # Keep valid dates only
 
-    # --- Add expiry month ---
+    # add expiry month
     df["expiry_month"] = df[DATE_COL].dt.to_period("M")
 
     today = pd.Timestamp(datetime.today().date())
@@ -45,7 +45,7 @@ def main():
         freq="M"
     )
 
-    # --- Count expiries per month ---
+    # count expiries per month
     monthly_counts = (
         df.groupby("expiry_month")
           .size()
@@ -56,7 +56,7 @@ def main():
 
     monthly_counts.to_csv(OUTPUT_DIR / "monthly_expiring_totals.csv", index=True)
 
-    # --- Breakdown by accreditation title ---
+    # Breakdown by skill (accreditation) title
     monthly_by_title = (
         df.groupby(["expiry_month", TITLE_COL])
           .size()
@@ -67,7 +67,7 @@ def main():
 
     monthly_by_title.to_csv(OUTPUT_DIR / "monthly_expiring_by_title.csv")
 
-    # --- Detect PPST variations ---
+    # Identify PPST variations
     ppst_cols = [c for c in monthly_by_title.columns if "ppst" in str(c).lower()]
 
     if ppst_cols:
@@ -76,9 +76,7 @@ def main():
     else:
         ppst_monthly = None
 
-    # -------------------------------------------------------------
-    # CHART 1 — Overall monthly expiries
-    # -------------------------------------------------------------
+    # visual 1 — Overall monthly expiries
     plt.figure()
     monthly_counts["expiring_count"].plot(kind="bar")
     plt.title(f"Accreditations Expiring per Month (Next {MONTHS_AHEAD} Months)")
@@ -89,9 +87,7 @@ def main():
     plt.savefig(OUTPUT_DIR / "monthly_expiring_totals.png")
     plt.close()
 
-    # -------------------------------------------------------------
-    # CHART 2 — PPST only (if detected)
-    # -------------------------------------------------------------
+    # visual 2 — PPST only
     if ppst_monthly is not None:
         plt.figure()
         ppst_monthly.plot(kind="bar")
@@ -103,9 +99,7 @@ def main():
         plt.savefig(OUTPUT_DIR / "ppst_monthly_expiring.png")
         plt.close()
 
-    # -------------------------------------------------------------
-    # CHART 3 — Top 5 titles by expiries
-    # -------------------------------------------------------------
+    # visual 3 — Top 5 skill by expiries
     top_titles = df[df["expiry_month"].isin(future_months)][TITLE_COL].value_counts().head(5).index.tolist()
 
     if top_titles:
@@ -120,9 +114,7 @@ def main():
         plt.savefig(OUTPUT_DIR / "top_titles_monthly_expiring.png")
         plt.close()
 
-    # -------------------------------------------------------------
-    # SIMPLE LINEAR TREND BEYOND KNOWN DATA
-    # -------------------------------------------------------------
+    # SIMPLE LINEAR TREND
     hist = (
         df.groupby("expiry_month")
           .size()
@@ -158,7 +150,7 @@ def main():
     plt.savefig(OUTPUT_DIR / "simple_trend_forecast.png")
     plt.close()
 
-    print("✅ Analysis complete!")
+    print("Analysis complete! :) ")
     print(f"Outputs saved to: {OUTPUT_DIR.resolve()}")
 
 
